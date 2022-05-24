@@ -45,6 +45,12 @@ class KairosScrappy():
         for ele_num in range(7):
             data = self.driver.find_element_by_xpath(f'//*[@id="ApontID{ele_num}"]').text.replace('\n', ' ').split()
             
+            if data[1] == 'sábado' or data[1] == 'domingo':
+                continue
+            
+            while len(data) < 6:
+                data.append('00:00')
+            
             for element in data[2:]:
                 if data[1] not in self.infos.keys():
                     self.infos[data[1]] = []
@@ -75,9 +81,13 @@ class Tratamentos():
         df.insert(7, 'Total', pd.to_timedelta(df['Primeiro turno']) + pd.to_timedelta(df['Segundo turno']))
         df['Total'] = df['Total'].astype('string')
         df['Total'] = df['Total'].str.replace('0 days ', '')
+        df['Total'] = df['Total'].apply(Tratamentos.verifica_len)
         df['Status'] = df['Total'].apply(Tratamentos.verfica_he)
         df.columns = ['H1', 'H2', 'H3', 'H4', 'Primeiro turno', 'Almoco', 'Segundo turno', 'Total', 'Status']
-        
+        df['Primeiro turno'] = df['Primeiro turno'].apply(Tratamentos.verifica_len)
+        df['Almoco'] = df['Almoco'].apply(Tratamentos.verifica_len)
+        df['Segundo turno'] = df['Segundo turno'].apply(Tratamentos.verifica_len)
+
         return df
     
     @staticmethod
@@ -85,9 +95,18 @@ class Tratamentos():
         if '07:55:00' <= hora  <= '08:05:00':
             return 'Você não tem horas extras a lançar! Lance 00:08:00'
         elif '07:55:00' > hora:
-            return 'Você trabalhou menos do que 8 horas diárias'
+            return f'Você trabalhou menos do que 8 horas diárias. Lance {hora}'
+        elif hora == '00:00:00':
+            return f'Total de horas não cadastradas.'
         else:
             return f"Você tem horas extras a lançar! Lance {str(pd.to_timedelta(hora) - pd.to_timedelta('00:05:00')).replace('0 days ', '')}"
+    
+    @staticmethod
+    def verifica_len(hora):
+        if len(hora) != 8:
+            return '00:00:00'
+        else:
+            return hora
   
 class Window():
     def __init__(self, dataframe):   
