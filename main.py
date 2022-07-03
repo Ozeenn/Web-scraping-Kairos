@@ -1,6 +1,6 @@
 """
-__author__ = patrick_alan
-__created_on__ = 21/05/2022
+@author = patrick_alan
+@create_date = 21/05/2022
 
 """
 from selenium import webdriver
@@ -55,8 +55,7 @@ class KairosScrappy():
                 if data[1] not in self.infos.keys():
                     self.infos[data[1]] = []
                 
-                self.infos[data[1]].append(element)
-                
+                self.infos[data[1]].append(element)                
 
     def logoff(self):
         self.driver.get('https://www.dimepkairos.com.br/Dimep/Account/LogOff')
@@ -82,24 +81,44 @@ class Tratamentos():
         df['Total'] = df['Total'].astype('string')
         df['Total'] = df['Total'].str.replace('0 days ', '')
         df['Total'] = df['Total'].apply(Tratamentos.verifica_len)
-        df['Status'] = df['Total'].apply(Tratamentos.verfica_he)
+        df['Status'] = df['Total'].apply(Tratamentos.verifica_he)
         df.columns = ['H1', 'H2', 'H3', 'H4', 'Primeiro turno', 'Almoco', 'Segundo turno', 'Total', 'Status']
         df['Primeiro turno'] = df['Primeiro turno'].apply(Tratamentos.verifica_len)
         df['Almoco'] = df['Almoco'].apply(Tratamentos.verifica_len)
         df['Segundo turno'] = df['Segundo turno'].apply(Tratamentos.verifica_len)
+        df['Horas normais'] = df['Total'].apply(Tratamentos.horas_normais)
+        df['Horas extras'] = df['Total'].apply(Tratamentos.horas_extras)
 
         return df
     
     @staticmethod
-    def verfica_he(hora):
-        if '07:55:00' <= hora  <= '08:05:00':
-            return 'Você não tem horas extras a lançar! Lance 00:08:00'
-        elif '07:55:00' > hora:
-            return f'Você trabalhou menos do que 8 horas diárias. Lance {hora}'
-        elif hora == '00:00:00':
+    def verifica_he(hora):
+        if hora == '00:00:00':
             return f'Total de horas não cadastradas.'
+        elif '07:55:00' <= hora  <= '08:05:00':
+            return 'Você não tem horas extras a lançar!'
+        elif '07:55:00' > hora:
+            return f'Você trabalhou menos do que 8 horas diárias'
         else:
-            return f"Você tem horas extras a lançar! Lance {str(pd.to_timedelta(hora) - pd.to_timedelta('00:05:00')).replace('0 days ', '')}"
+            return f"Você tem horas extras a lançar!"
+        
+    @staticmethod
+    def horas_normais(hora):
+        if hora == '00:00:00':
+            return '00:00'
+        elif '07:55:00' > hora:
+            return hora[0:5]
+        else:
+            return '08:00'
+        
+    @staticmethod
+    def horas_extras(hora):
+        if hora == '00:00:00':
+            return '----'
+        elif '07:55:00' <= hora  <= '08:05:00':
+            return '----'
+        else:
+            return '00:' + str(round(int(hora[3:5])/ 100, 1)).split('.')[1] + '0'
     
     @staticmethod
     def verifica_len(hora):
@@ -107,11 +126,16 @@ class Tratamentos():
             return '00:00:00'
         else:
             return hora
+        
+    @staticmethod
+    def arredonda_horas(hora):
+        split_hour = hora.split(':')
+        return split_hour[0] + ':' + str(round(int(split_hour[1])/ 100, 1)).split('.')[1] + '0' + ':' + split_hour[2]
   
 class Window():
     def __init__(self, dataframe):   
         self.root = tk.Tk()
-        self.root.geometry('1520x200')
+        self.root.geometry('1825x200')
         Window.center(self.root)
         self.root.title('Kairos')
         self.dataframe = dataframe
@@ -124,9 +148,11 @@ class Window():
         for i in cols:
             tv.column(i, width=100,anchor='c')
             tv.heading(i, text=i, anchor='c')
-            
 
-        tv.column('Status', width=500, anchor='c')
+
+        tv.column('Status', width=300, anchor='c')
+        tv.column('Horas normais', width=100, anchor='c')
+        tv.column('Horas extras', width=100, anchor='c') 
         tv.pack()
             
         for index, row in self.dataframe.iterrows():
